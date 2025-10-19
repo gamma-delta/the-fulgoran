@@ -1,0 +1,11 @@
+{
+  "name": "pk-the-fulgoran",
+  "version": "0.0.0",
+  "title": "The Fulgoran",
+  "description": "A survival roguelike scenario set on the desolate wastes of Fulgora.",
+  "author": "petrak@",
+  "factorio_version": "2.0",
+  "dependencies": [
+    "space-age"
+  ]
+}
