@@ -9,6 +9,7 @@ data:extend{
     name = "pk-oxygen-diffuser",
     icon = "__base__/graphics/icons/pump.png",
     flags = {"placeable-neutral", "player-creation", "get-by-unit-number"},
+    minable = {mining_time=0.5, result="pk-oxygen-diffuser"},
     collision_box = {{-0.4, -0.4}, {0.4, 0.4}},
     selection_box = {{-0.45, -0.45}, {0.45, 0.45}},
     crafting_categories = {"pk-internal"},
@@ -64,7 +65,8 @@ data:extend{
     threshold = 0.1,
 
     fluid_box = {
-      volume = 10,
+      -- i think the flow rate is locked on this
+      volume = 1000,
       filter = "pk-oxygen",
       pipe_connections = {
         {

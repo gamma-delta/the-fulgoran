@@ -28,11 +28,26 @@ data:extend{
     type = "recipe-category",
     name = "pk-internal",
   },
+}
 
+local debug_o2 = {
+  {icon = "__pk-the-fulgoran__/graphics/icons/molecule-oxygen.png"},
   {
-    type = "custom-input",
+    icon = "__base__/graphics/icons/big-biter-corpse.png",
+    scale = 0.3333,
+    shift = {-8, -8},
+  },
+}
+data:extend{
+  {
+    type = "shortcut",
     name = "pk-oxygen-debug",
-    key_sequence = "SHIFT + O",
+    localised_name = {"shortcut.pk-oxygen-debug"},
+    toggleable = true,
     action = "lua",
-  }
+    icon_size = 56,
+    icons = debug_o2,
+    small_icon_size = 24,
+    small_icons = debug_o2
+  },
 }

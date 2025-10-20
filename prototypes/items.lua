@@ -4,5 +4,10 @@ data:extend{
     place_as_tile = {
       result = "pk-hab-floor",
     }
-  }}
+  }},
+
+  util.merge{data.raw["item"]["pump"], {
+    name = "pk-oxygen-diffuser",
+    place_result = "pk-oxygen-diffuser",
+  }},
 }

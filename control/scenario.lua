@@ -2,7 +2,7 @@ local veh = {
   events={}
 }
 
-function respawn_player(player)
+local function respawn_player(player)
   local fulgora = game.surfaces["fulgora"]
   local spawn_pos = player.force.get_spawn_position(fulgora)
   player.teleport(
@@ -11,7 +11,7 @@ function respawn_player(player)
   )
 end
 
-function create_ending_info()
+local function create_ending_info()
   game.set_win_ending_info{
     title = "Your did it",
     message = "yay"

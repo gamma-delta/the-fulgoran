@@ -1,15 +1,14 @@
 local tf_util = require("tf_util")
 
-local veh = {events={}}
+local veh = {events={}, on_nth_tick={}}
 
 -- Tries to get it via unit number or entity
+--- @return {["diffuser"]: LuaEntity, ["valve"]: LuaEntity, ["tank"]: LuaEntity}
 local function oxygen_diffuser_assoc(id)
-  local entity = id
-  if type(entity) == "number" then
-    entity = game.get_entity_by_unit_number(id)
+  if type(id) ~= "number" then
+    id = id.unit_number
   end
-  if entity == nil then return nil end
-  return tf_util.storage_table("oxygen-diffusers")[entity.unit_number]
+  return tf_util.storage_table("oxygen-diffusers")[id]
 end
 
 veh.events[defines.events.on_script_trigger_effect] = function(evt)
@@ -34,22 +33,67 @@ veh.events[defines.events.on_script_trigger_effect] = function(evt)
 
   tf_util.storage_table("oxygen-diffusers")[diffuser.unit_number] = {
     -- it turns out you can just put entities in here?
+    diffuser = diffuser,
     valve = valve,
     tank = tank,
   }
 end
 
-veh.events[defines.events.on_object_destroyed] = function(evt)
-  local odds = tf_util.storage_table("oxygen-diffuser-deathrattle")
-  if not odds[evt.registration_number] then return end
+veh.on_nth_tick[10] = function(tick)
+  -- Do 1/6th of these
+  local chunk_amt = 6
+  local chunk_tick_idx = math.floor(tick.tick / tick.nth_tick) % chunk_amt
+  local i = 0
+  for _,assoc in pairs(storage["oxygen-diffusers"]) do
+    if i == (chunk_tick_idx) then
+      local diffuser = assoc.diffuser
+      local ff = tf_util.floodfill_o2(
+        diffuser.surface,
+        diffuser.position
+      )
+      if ff.error then
+        tf_util.debug_flying_text(diffuser.surface, diffuser.position,
+          ff.reason, {color={1, 0.5, 0.5}})
+      else
+        local o2_per_square = 100
+        local max_o2 = #ff.ok * o2_per_square
 
-  local assoc = oxygen_diffuser_assoc(evt.useful_id)
-  if assoc then
-    game.print("Killing " .. serpent.line(assoc))
-    assoc.valve.destroy()
+        local tank_size = assoc.tank.fluidbox.get_capacity(1)
+        local proportion = max_o2 / tank_size
+        assoc.valve.valve_threshold_override = proportion
+
+        tf_util.debug_flying_text(
+          diffuser.surface, diffuser.position,
+          string.format(
+            "floodfill found %d, o2 is %f%% of tank max", #ff.ok, proportion*100
+          ),
+          {})
+      end
+    end
+    i = i+1
   end
 end
 
+veh.events[defines.events.on_object_destroyed] = function(evt)
+  local odds = tf_util.storage_table("oxygen-diffuser-deathrattle")
+  if not odds[evt.registration_number] then return end
+  odds[evt.registration_number] = nil
+  local assoc = oxygen_diffuser_assoc(evt.useful_id)
+  if assoc then
+    assoc.valve.destroy()
+    assoc.tank.destroy()
+    tf_util.storage_table("oxygen-diffusers")[evt.useful_id] = nil
+  end
+end
+
+-- i hate factorio
+veh.events[defines.events.on_lua_shortcut] = function(evt)
+  if evt.prototype_name ~= "pk-oxygen-debug" then return end
+  local player = game.players[evt.player_index]
+  player.set_shortcut_toggled("pk-oxygen-debug", not player.is_shortcut_toggled("pk-oxygen-debug"))
+end
+
+--[[
 veh.events["pk-oxygen-debug"] = function(evt)
   local player = game.players[evt.player_index]
   local ff = tf_util.floodfill_o2(player.surface, evt.cursor_position)
@@ -81,5 +125,6 @@ veh.events["pk-oxygen-debug"] = function(evt)
     end
   end
 end
+]]
 
 return veh
