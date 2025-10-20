@@ -22,5 +22,17 @@ data:extend{
   {
     type = "collision-layer",
     name = "pk-airtight",
+  },
+
+  {
+    type = "recipe-category",
+    name = "pk-internal",
+  },
+
+  {
+    type = "custom-input",
+    name = "pk-oxygen-debug",
+    key_sequence = "SHIFT + O",
+    action = "lua",
   }
 }

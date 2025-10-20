@@ -1,3 +1,5 @@
+local vanilla_collision = require("__core__/lualib/collision-mask-defaults")
+
 local function fixup_layer(proto, layer)
   local bb = proto.collision_box
   if not proto.tile_buildability_rules then 
@@ -30,3 +32,14 @@ req_sealed(data.raw["accumulator"]["accumulator"])
 
 req_oxygenated(data.raw["furnace"]["stone-furnace"])
 req_oxygenated(data.raw["furnace"]["steel-furnace"])
+
+local function add_layer(proto, layer)
+  if proto.collision_mask == nil then
+    proto.collision_mask = util.copy(vanilla_collision[proto.type])
+  end
+  proto.collision_mask.layers[layer] = true
+end
+
+add_layer(data.raw["wall"]["stone-wall"], "pk-airtight")
+add_layer(data.raw["gate"]["gate"], "pk-airtight")
+log(serpent.block(data.raw["wall"]["stone-wall"].collision_mask))
