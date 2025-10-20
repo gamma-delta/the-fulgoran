@@ -52,10 +52,10 @@ end
 
 veh.events["pk-oxygen-debug"] = function(evt)
   local player = game.players[evt.player_index]
-  game.print("cursor event at " .. serpent.line(evt.cursor_position))
   local ff = tf_util.floodfill_o2(player.surface, evt.cursor_position)
 
   if ff.error then
+    game.print(ff.reason)
     rendering.draw_sprite{
       target = tf_util.add_pos(ff.error, {0.5, 0.5}),
       surface = player.surface,
@@ -66,14 +66,16 @@ veh.events["pk-oxygen-debug"] = function(evt)
       players = {player},
     }
   else
+    local box_sz = 0.8
+    local box_margin = 1-box_sz
     for _,pos in ipairs(ff.ok) do
       rendering.draw_rectangle{
         players = {player},
         surface = player.surface,
-        left_top = pos,
-        right_bottom = tf_util.add_pos(pos, {1, 1}),
-        color = {0.8, 0.8, 1.0, 0.2},
-        filled = false,
+        left_top = tf_util.add_pos(pos, {1-box_sz, 1-box_sz}),
+        right_bottom = tf_util.add_pos(pos, {box_sz, box_sz}),
+        color = {0.5, 0.7, 1.0, 0.001},
+        filled = true,
         time_to_live = 60 * 5,
       }
     end

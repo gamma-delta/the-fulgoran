@@ -26,8 +26,8 @@ end
 
 tf_util.round_pos = function(it)
   return {
-    x = (it.x < 0) and math.ceil(it.x) or math.floor(it.x),
-    y = (it.y < 0) and math.ceil(it.y) or math.floor(it.y)
+    x = math.floor(it.x),
+    y = math.floor(it.y),
   }
 end
 tf_util.add_pos = function(a, b)
@@ -35,6 +35,12 @@ tf_util.add_pos = function(a, b)
     x = (a.x or a[1]) + (b.x or b[1]),
     y = (a.y or a[2]) + (b.y or b[2]),
   }
+end
+tf_util.center_pos = function(it)
+  return tf_util.add_pos(it, {
+    x = ((it.x or it[1]) > 0) and 0.5 or -0.5,
+    y = ((it.y or it[2]) > 0) and 0.5 or -0.5,
+  })
 end
 
 -- checker(position) -> string
@@ -44,13 +50,12 @@ end
 tf_util.floodfill = function(start, checker)
   start = tf_util.round_pos(start)
   
-  game.print(serpent.line(start))
   if checker(start) ~= "ok" then 
-    return {error=start}
+    return {error=start, reason="start must be ok"}
   end
   local work = {start}
-  local results = {}
-  local seen = {}
+  local results = {start}
+  local seen = {[util.positiontostr(start)] = true}
   local done = 0
   while #work > 0 and done < 10000 do
     done = done + 1
@@ -65,14 +70,13 @@ tf_util.floodfill = function(start, checker)
       local i_hate_lua = util.positiontostr(there)
       if seen[i_hate_lua] then goto continue end
       seen[i_hate_lua] = true
-      table.insert(results, there)
 
       local checked = checker(there)
-      game.print("checking " .. serpent.line(there) .. " -> " .. checked)
       if checked == "ok" then
+        table.insert(results, there)
         table.insert(work, there)
       elseif checked == "fail" then
-        return {error=there}
+        return {error=there, reason="fail tile during floodfill"}
       end
       -- Else, if it's a wall, successfully don't care
 
@@ -83,12 +87,12 @@ tf_util.floodfill = function(start, checker)
 end
 
 tf_util.position_has_wall = function(surface, pos)
+  pos = tf_util.add_pos(pos, {0.5, 0.5})
   local es = surface.find_entities_filtered{
-    -- position = tf_util.add_pos(pos, {0.5, 0.5}),
     position = pos,
     collision_mask = "pk-airtight",
+    radius = 0.25
   }
-  game.print(serpent.line(es))
   return #es > 0
 end
 
