@@ -141,4 +141,12 @@ tf_util.debug_flying_text = function(surface, position, text, splat)
   end
 end
 
+tf_util.alert = function(entity, icon, text, show_on_map)
+  for _,player in pairs(game.players) do
+    if player.force == entity.force then
+      player.add_custom_alert(entity, icon, text, show_on_map)
+    end
+  end
+end
+
 return tf_util

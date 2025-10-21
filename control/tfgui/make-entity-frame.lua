@@ -26,7 +26,10 @@ return function(parent, entity)
     style = "two_module_spacing_vertical_flow"
   }
 
-  local status_bar = wrapper.add{type="flow", direction="horizontal"}
+  local status_bar = wrapper.add{
+    type="flow", direction="horizontal",
+    style="player_input_horizontal_flow"
+  }
   -- https://forums.factorio.com/viewtopic.php?p=538298
   local diode_color, status_name
   if entity.custom_status then

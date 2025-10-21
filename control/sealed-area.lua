@@ -50,16 +50,16 @@ veh.on_nth_tick[10] = function(tick)
       local diffuser = assoc.diffuser
       local ff = tf_util.floodfill_o2(diffuser)
       if ff.error then
-        tf_util.debug_flying_text(diffuser.surface, diffuser.position,
-          ff.reason, {color={1, 0.5, 0.5}})
-        assoc.valve.valve_threshold_override = 1
         -- you are dumping it all to atmosphere.
         if ff.catastrophe then
-          assoc.tank.clear_fluid_inside()
+          assoc.valve.valve_threshold_override = 1
+          assoc.tank.fluidbox.flush(1, "pk-work")
+        else
+          assoc.valve.valve_threshold_override = 0
         end
+        tf_util.alert(diffuser, {type="fluid", name="pk-oxygen"}, ff.reason, true)
       else
-        local o2_per_square = 100
-        local max_o2 = #ff.ok * o2_per_square
+        local max_o2 = #ff.ok * settings.startup["pk-oxygen-volume-per-tile"].value
 
         if not assoc.tank.fluidbox[1] then
           tf_util.debug_flying_text(
@@ -90,6 +90,8 @@ veh.on_nth_tick[10] = function(tick)
             {})
           end
         end
+
+        script.raise_event("pk-redraw-guis", {})
     end
     i = i+1
   end
