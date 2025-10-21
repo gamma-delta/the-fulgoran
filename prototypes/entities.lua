@@ -10,8 +10,8 @@ data:extend{
     icon = "__base__/graphics/icons/pump.png",
     flags = {"placeable-neutral", "player-creation", "get-by-unit-number"},
     minable = {mining_time=0.5, result="pk-oxygen-diffuser"},
-    collision_box = {{-0.4, -0.4}, {0.4, 0.4}},
-    selection_box = {{-0.45, -0.45}, {0.45, 0.45}},
+    collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
+    selection_box = {{-1, -1}, {1, 1}},
     crafting_categories = {"pk-internal"},
     fixed_recipe = "pk-oxygen-diffuser",
     crafting_speed = 1,
@@ -30,7 +30,7 @@ data:extend{
         filter = "pk-oxygen",
         pipe_covers = pipecoverspictures(),
         pipe_connections = {{
-          position = {0, 0},
+          position = {-0.5, -0.5},
           direction = defines.direction.north,
           flow_direction = "input",
         }}
@@ -44,6 +44,35 @@ data:extend{
           connection_type = "linked",
           linked_connection_id = 1,
         }}
+      },
+    },
+
+    graphics_set = {
+      animation = {
+        north = {
+          layers = {
+            {
+              filename = "__pk-the-fulgoran__/graphics/entities/oxygen-diffuser/shadow.png",
+              scale = 0.5,
+              width = 164,
+              height = 102,
+              shift = {0.22, 0.25},
+              draw_as_shadow = true,
+              repeat_count = 16,
+              animation_speed = 0.5,
+            },
+            {
+              filename = "__pk-the-fulgoran__/graphics/entities/oxygen-diffuser/main.png",
+              scale = 0.5,
+              width = 150,
+              height = 150,
+              shift = {0, -0.1},
+              animation_speed = 0.5,
+              frame_count = 16,
+              line_length = 4,
+            },
+          }
+        }
       },
     }
   },

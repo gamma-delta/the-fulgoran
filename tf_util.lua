@@ -43,15 +43,19 @@ tf_util.center_pos = function(it)
   })
 end
 
--- checker(position) -> string
--- "ok": can floodfill through here
--- "wall": safely blocks floodfill
--- "fail": instantly fail
+-- checker(position) -> table
+-- {ty="ok"} : can floodfill through here
+-- {ty="wall"} : safely blocks floodfill
+-- {ty="fail", ...}: fail the floodfill, and pass extra to the caller.
 tf_util.floodfill = function(start, checker)
   start = tf_util.round_pos(start)
-  
-  if checker(start) ~= "ok" then 
-    return {error=start, reason="start must be ok"}
+
+  if checker(start).ty ~= "ok" then
+    return {
+      error=start,
+      reason={"pk-text.o2-diffuser-bad-start"},
+      catastrophe=false
+    }
   end
   local work = {start}
   local results = {start}
@@ -59,7 +63,7 @@ tf_util.floodfill = function(start, checker)
   local done = 0
   while #work > 0 and done < 10000 do
     done = done + 1
-    
+
     local here = table.remove(work)
     for _,dir in ipairs{
       "north", "south", "east", "west",
@@ -72,11 +76,14 @@ tf_util.floodfill = function(start, checker)
       seen[i_hate_lua] = true
 
       local checked = checker(there)
-      if checked == "ok" then
+      if checked.ty == "ok" then
         table.insert(results, there)
         table.insert(work, there)
-      elseif checked == "fail" then
-        return {error=there, reason="fail tile during floodfill"}
+      elseif checked.ty == "fail" then
+        return util.merge{
+          {error=there},
+          checked,
+        }
       end
       -- Else, if it's a wall, successfully don't care
 
@@ -96,14 +103,25 @@ tf_util.position_has_wall = function(surface, pos)
   return #es > 0
 end
 
-tf_util.floodfill_o2 = function(surface, start)
-  return tf_util.floodfill(start, function(pos)
-    if tf_util.position_has_wall(surface, pos) then
-      return "wall"
-    elseif surface.get_tile(pos).collides_with("pk-floor") then
-      return "ok"
+tf_util.floodfill_o2 = function(diffuser)
+  return tf_util.floodfill(diffuser.position, function(pos)
+    local diffuser_here = diffuser.surface.find_entity('pk-oxygen-diffuser', tf_util.add_pos(pos, {0.5, 0.5}))
+    if diffuser_here and diffuser_here ~= diffuser then
+      return {
+        ty="fail",
+        reason={"pk-text.o2-diffuser-two-diffusers"},
+        catastrophe=false
+      }
+    elseif tf_util.position_has_wall(diffuser.surface, pos) then
+      return {ty="wall"}
+    elseif diffuser.surface.get_tile(pos).collides_with("pk-floor") then
+      return {ty="ok"}
     else
-      return "fail"
+      return {
+        ty = "fail",
+        reason = {"pk-text.o2-diffuser-unsealed"},
+        catastrophe=true
+      }
     end
   end)
 end

@@ -36,6 +36,7 @@ veh.events[defines.events.on_script_trigger_effect] = function(evt)
     diffuser = diffuser,
     valve = valve,
     tank = tank,
+    owned_tiles = {}
   }
 end
 
@@ -47,42 +48,48 @@ veh.on_nth_tick[10] = function(tick)
   for _,assoc in pairs(storage["oxygen-diffusers"]) do
     if i == (chunk_tick_idx) then
       local diffuser = assoc.diffuser
-      local ff = tf_util.floodfill_o2(
-        diffuser.surface,
-        diffuser.position
-      )
+      local ff = tf_util.floodfill_o2(diffuser)
       if ff.error then
         tf_util.debug_flying_text(diffuser.surface, diffuser.position,
           ff.reason, {color={1, 0.5, 0.5}})
         assoc.valve.valve_threshold_override = 1
         -- you are dumping it all to atmosphere.
-        assoc.tank.clear_fluid_inside()
+        if ff.catastrophe then
+          assoc.tank.clear_fluid_inside()
+        end
       else
         local o2_per_square = 100
         local max_o2 = #ff.ok * o2_per_square
 
-        local tank_size = assoc.tank.fluidbox.get_capacity(1)
-        local proportion = max_o2 / tank_size
-        assoc.valve.valve_threshold_override = proportion
-        -- give a little wiggle room
-        local must_void = max_o2 < assoc.tank.fluidbox[1].amount - 100
-        if must_void then
-          local fluid = assoc.tank.fluidbox[1]
-          fluid.amount = max_o2
-          assoc.tank.fluidbox[1] = fluid
-        end
+        if not assoc.tank.fluidbox[1] then
+          tf_util.debug_flying_text(
+            diffuser.surface, diffuser.position,
+            "tank fluidbox DNE, waiting?",
+            {})
+        else
+          local tank_size = assoc.tank.fluidbox.get_capacity(1)
+          local proportion = max_o2 / tank_size
+          assoc.valve.valve_threshold_override = proportion
+          -- give a little wiggle room
+          local must_void = max_o2 < assoc.tank.fluidbox[1].amount - 100
+          if must_void then
+            local fluid = assoc.tank.fluidbox[1]
+            fluid.amount = max_o2
+            assoc.tank.fluidbox[1] = fluid
+          end
 
-        tf_util.debug_flying_text(
-          diffuser.surface, diffuser.position,
-          string.format(
-            "floodfill found %d, need %d o2 (%f%% of max)%s",
-            #ff.ok,
-            max_o2,
-            proportion*100,
-            (must_void and ", voided!" or "")
-          ),
-          {})
-      end
+          tf_util.debug_flying_text(
+            diffuser.surface, diffuser.position,
+            string.format(
+              "floodfill found %d, need %d o2 (%f%% of max)%s",
+              #ff.ok,
+              max_o2,
+              proportion*100,
+              (must_void and ", voided!" or "")
+            ),
+            {})
+          end
+        end
     end
     i = i+1
   end
@@ -122,7 +129,7 @@ veh.events[defines.events.on_selected_entity_changed] = function(evt)
   if not e or e.name ~= "pk-oxygen-diffuser" then return end
   local renders = my_renders[player.index]
 
-  local ff = tf_util.floodfill_o2(e.surface, e.position)
+  local ff = tf_util.floodfill_o2(e)
   if ff.error then
     table.insert(renders, rendering.draw_text{
       text = ff.reason,
@@ -140,7 +147,7 @@ veh.events[defines.events.on_selected_entity_changed] = function(evt)
       target = tf_util.add_pos(ff.error, {0.5, 0.5})
     })
   else
-  local box_sz = 1
+    local box_sz = 1
     for _,pos in ipairs(ff.ok) do
       table.insert(renders, rendering.draw_rectangle{
         players = {player},
