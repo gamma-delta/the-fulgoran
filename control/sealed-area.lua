@@ -54,6 +54,9 @@ veh.on_nth_tick[10] = function(tick)
       if ff.error then
         tf_util.debug_flying_text(diffuser.surface, diffuser.position,
           ff.reason, {color={1, 0.5, 0.5}})
+        assoc.valve.valve_threshold_override = 1
+        -- you are dumping it all to atmosphere.
+        assoc.tank.clear_fluid_inside()
       else
         local o2_per_square = 100
         local max_o2 = #ff.ok * o2_per_square
@@ -61,11 +64,22 @@ veh.on_nth_tick[10] = function(tick)
         local tank_size = assoc.tank.fluidbox.get_capacity(1)
         local proportion = max_o2 / tank_size
         assoc.valve.valve_threshold_override = proportion
+        -- give a little wiggle room
+        local must_void = max_o2 < assoc.tank.fluidbox[1].amount - 100
+        if must_void then
+          local fluid = assoc.tank.fluidbox[1]
+          fluid.amount = max_o2
+          assoc.tank.fluidbox[1] = fluid
+        end
 
         tf_util.debug_flying_text(
           diffuser.surface, diffuser.position,
           string.format(
-            "floodfill found %d, o2 is %f%% of tank max", #ff.ok, proportion*100
+            "floodfill found %d, need %d o2 (%f%% of max)%s",
+            #ff.ok,
+            max_o2,
+            proportion*100,
+            (must_void and ", voided!" or "")
           ),
           {})
       end
@@ -93,38 +107,51 @@ veh.events[defines.events.on_lua_shortcut] = function(evt)
   player.set_shortcut_toggled("pk-oxygen-debug", not player.is_shortcut_toggled("pk-oxygen-debug"))
 end
 
---[[
-veh.events["pk-oxygen-debug"] = function(evt)
+veh.events[defines.events.on_selected_entity_changed] = function(evt)
   local player = game.players[evt.player_index]
-  local ff = tf_util.floodfill_o2(player.surface, evt.cursor_position)
 
+  local my_renders = tf_util.storage_table("oxygen-diffuser-renders")
+  if my_renders[player.index] then
+    for _,r in ipairs(my_renders[player.index]) do
+      r.destroy()
+    end
+  end
+  my_renders[player.index] = {}
+
+  local e = player.selected
+  if not e or e.name ~= "pk-oxygen-diffuser" then return end
+  local renders = my_renders[player.index]
+
+  local ff = tf_util.floodfill_o2(e.surface, e.position)
   if ff.error then
-    game.print(ff.reason)
-    rendering.draw_sprite{
-      target = tf_util.add_pos(ff.error, {0.5, 0.5}),
-      surface = player.surface,
+    table.insert(renders, rendering.draw_text{
+      text = ff.reason,
+      surface = e.surface,
+      target = e,
+      color = {1.0, 0.5, 0.5},
+      alignment = "center",
+      vertical_alignment = "middle"
+    })
+    table.insert(renders, rendering.draw_sprite{
       sprite = "utility/danger_icon",
+      surface = e.surface,
       x_scale = 0.5,
       y_scale = 0.5,
-      time_to_live = 120,
-      players = {player},
-    }
+      target = tf_util.add_pos(ff.error, {0.5, 0.5})
+    })
   else
-    local box_sz = 0.8
-    local box_margin = 1-box_sz
+  local box_sz = 1
     for _,pos in ipairs(ff.ok) do
-      rendering.draw_rectangle{
+      table.insert(renders, rendering.draw_rectangle{
         players = {player},
         surface = player.surface,
         left_top = tf_util.add_pos(pos, {1-box_sz, 1-box_sz}),
         right_bottom = tf_util.add_pos(pos, {box_sz, box_sz}),
-        color = {0.5, 0.7, 1.0, 0.001},
+        color = util.premul_color{0.5, 0.7, 1.0, 0.3},
         filled = true,
-        time_to_live = 60 * 5,
-      }
+      })
     end
   end
 end
-]]
 
 return veh

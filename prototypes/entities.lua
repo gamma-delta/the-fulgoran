@@ -59,7 +59,7 @@ data:extend{
     collision_box = {{-0.3, -0.3}, {0.3, 0.3}},
     selection_box = {{-0.3, -0.3}, {0.3, 0.3}},
 
-    flow_rate = 1000,
+    flow_rate = 100000,
     mode = "top-up",
     -- changed at runtime depending on room size
     threshold = 0.1,

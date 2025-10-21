@@ -109,7 +109,6 @@ tf_util.floodfill_o2 = function(surface, start)
 end
 
 tf_util.debug_flying_text = function(surface, position, text, splat)
-  local ok_players = {}
   for _,player in pairs(game.players) do
     if player.is_shortcut_toggled("pk-oxygen-debug") then
       player.create_local_flying_text(util.merge({

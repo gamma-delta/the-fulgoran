@@ -6,9 +6,9 @@ data:extend{
     category = "pk-internal",
     enabled = true,
     hidden = true,
-    ingredients = {{type="fluid", name="pk-oxygen", amount=1000}},
-    energy_required = 1,
-    results = {{type="fluid", name="pk-work", amount=1000}}
+    ingredients = {{type="fluid", name="pk-oxygen", amount=100}},
+    energy_required = 0.1,
+    results = {{type="fluid", name="pk-work", amount=100}}
   },
   {
     type = "recipe",
