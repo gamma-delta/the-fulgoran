@@ -8,7 +8,9 @@ data:extend{
     type = "assembling-machine",
     name = "pk-oxygen-diffuser",
     icon = "__base__/graphics/icons/pump.png",
-    flags = {"placeable-neutral", "player-creation", "get-by-unit-number"},
+    -- hide alt because it'll always be oxygen diffusion
+    flags = {"placeable-neutral", "player-creation", "get-by-unit-number",
+      "hide-alt-info"},
     minable = {mining_time=0.5, result="pk-oxygen-diffuser"},
     collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
     selection_box = {{-1, -1}, {1, 1}},
@@ -77,10 +79,14 @@ data:extend{
     }
   },
   {
-    type = "valve",
-    name = "pk-oxygen-diffuser-valve",
+    -- This used to be a valve but valves must have scaling flow rate.
+    -- see https://forums.factorio.com/viewtopic.php?t=131441
+    -- at runtime i control it with invisible circuits
+    type = "pump",
+    name = "pk-oxygen-diffuser-limiter",
     icon = "__base__/graphics/icons/signal/signal-question-mark.png",
-    flags = {"not-deconstructable", "not-blueprintable", "not-on-map"},
+    flags = {"not-deconstructable", "not-blueprintable", "not-on-map",
+      "hide-alt-info"},
     collision_mask = {layers={}},
     selectable_in_game = false,
     -- so it appears in editor
@@ -88,18 +94,20 @@ data:extend{
     collision_box = {{-0.3, -0.3}, {0.3, 0.3}},
     selection_box = {{-0.3, -0.3}, {0.3, 0.3}},
 
-    flow_rate = 100000,
-    mode = "top-up",
-    -- changed at runtime depending on room size
-    threshold = 0.1,
+    energy_source = {type="void"},
+    energy_usage = "69420W",
+
+    pumping_speed = 100000,
+    flow_scaling = false,
+    circuit_connector = circuit_connector_definitions["pump"],
 
     fluid_box = {
       -- i think the flow rate is locked on this
       volume = 1000,
-      filter = "pk-oxygen",
+      filter = "pk-work",
       pipe_connections = {
         {
-          flow_direction = "input-output",
+          flow_direction = "input",
           connection_type = "linked",
           linked_connection_id = 1,
         },
@@ -112,23 +120,24 @@ data:extend{
     }
   },
   {
-    -- it can't be a normal pipeline entity because they don't allow
-    -- linked connections.
-    -- using a valve because it has little "extra behavior"
-    -- the fluidbox lives on the input side, so i can't fold this
-    -- together with the real valve
-    type = "valve",
+    -- i hate this, but this is the only way I can figure
+    -- to have a circuit-network-readable fluidbox.
+    type = "storage-tank",
     name = "pk-oxygen-diffuser-storage",
     icon = "__base__/graphics/icons/signal/signal-question-mark.png",
-    flags = {"not-deconstructable", "not-blueprintable", "not-on-map"},
+    flags = {"not-deconstructable", "not-blueprintable", "not-on-map",
+      "no-automated-item-insertion", "hide-alt-info"},
     collision_mask = {layers={}},
     selectable_in_game = false,
     -- so it appears in editor
     selection_priority = 201,
     collision_box = {{-0.2, -0.2}, {0.2, 0.2}},
     selection_box = {{-0.2, -0.2}, {0.2, 0.2}},
-    mode = "one-way",
-    flow_rate = 1,
+
+    show_fluid_icon = false,
+    window_bounding_box = {{0,0}, {0,0}},
+    flow_length_in_ticks = 360,
+    circuit_connector = circuit_connector_definitions["storage-tank"],
 
     -- In all my math calculations, I'm assuming that 1 droplet of oxygen
     -- is 1 CC/1 mL. so 1000 == 1mL.
@@ -141,19 +150,20 @@ data:extend{
     -- which is a lot, that'll be fine
     fluid_box = {
       volume = 1e6,
-      filter = "pk-oxygen",
+      filter = "pk-work",
+      hide_connection_info = true,
       pipe_connections = {
+        -- it has to have *some* kind of normal connection
         {
+          direction = defines.direction.north,
+          position = {0, 0},
+          flow_direction = "input-output"
+        },
+        {
+          connection_type = "linked",
           flow_direction = "input-output",
-          connection_type = "linked",
-          linked_connection_id = 1,
-        },
-        {
-          -- Unused
-          flow_direction = "output",
-          connection_type = "linked",
-          linked_connection_id = 2,
-        },
+          linked_connection_id=1
+        }
       }
     }
   }

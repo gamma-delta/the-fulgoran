@@ -5,17 +5,17 @@ local veh = {events = {}}
 
 local function update_o2bar(bar, diffuser, ff)
   local assoc = tf_util.storage_table("oxygen-diffusers")[diffuser.unit_number]
+  local limit_cb = assoc.limiter.get_or_create_control_behavior()
 
   if ff.error then
     bar.value = 0
     bar.caption = {
-      "pk-gui.o2-diffuser-tank-amt", 0, 0
+      "pk-gui.o2-diffuser-tank-amt", 0, "infinity"
     }
   elseif assoc.tank.fluidbox[1] then
     -- TODO pull this out to a setting
     local o2_per_square = settings.startup["pk-oxygen-volume-per-tile"].value
-    local tank_size = assoc.tank.fluidbox.get_capacity(1)
-    local max_oxygen = assoc.valve.valve_threshold_override * tank_size
+    local max_oxygen = limit_cb.circuit_condition.constant
     local oxygen_amount = assoc.tank.fluidbox[1].amount
 
     bar.value = oxygen_amount / max_oxygen
@@ -68,6 +68,7 @@ local function redraw_gui(content)
   o2bar_zone.style.vertical_align = "center"
   o2bar_zone.add{
     type = "sprite", sprite = "fluid/pk-oxygen",
+    elem_tooltip = {type="fluid", name="pk-oxygen"}
   }
   local o2bar = o2bar_zone.add{
       type = "progressbar",

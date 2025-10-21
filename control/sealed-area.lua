@@ -18,8 +18,8 @@ veh.events[defines.events.on_script_trigger_effect] = function(evt)
   local decon_id = script.register_on_object_destroyed(diffuser)
   tf_util.storage_table("oxygen-diffuser-deathrattle")[decon_id] = true
 
-  local valve = diffuser.surface.create_entity{
-    name = "pk-oxygen-diffuser-valve",
+  local limiter = diffuser.surface.create_entity{
+    name = "pk-oxygen-diffuser-limiter",
     position = diffuser.position,
     force = diffuser.force
   }
@@ -28,13 +28,27 @@ veh.events[defines.events.on_script_trigger_effect] = function(evt)
     position = diffuser.position,
     force = diffuser.force
   }
-  diffuser.fluidbox.add_linked_connection(1, valve, 1)
-  valve.fluidbox.add_linked_connection(2, tank, 1)
+  diffuser.fluidbox.add_linked_connection(1, limiter, 1)
+  limiter.fluidbox.add_linked_connection(2, tank, 1)
+
+  -- MAGIC
+  local limiter_wc = limiter.get_wire_connector(defines.wire_connector_id.circuit_green, true)
+  local tank_wc = tank.get_wire_connector(defines.wire_connector_id.circuit_green, true)
+  limiter_wc.connect_to(tank_wc, false, defines.wire_origin.script)
+  local limiter_cb = limiter.get_or_create_control_behavior()
+  local tank_cb = tank.get_or_create_control_behavior()
+  tank_cb.read_contents = true
+  limiter_cb.circuit_enable_disable = true
+  limiter_cb.circuit_condition = {
+    first_signal = {type="fluid", name="pk-work"},
+    comparator="<",
+    constant=0,
+  }
 
   tf_util.storage_table("oxygen-diffusers")[diffuser.unit_number] = {
     -- it turns out you can just put entities in here?
     diffuser = diffuser,
-    valve = valve,
+    limiter = limiter,
     tank = tank,
     owned_tiles = {}
   }
@@ -48,50 +62,45 @@ veh.on_nth_tick[10] = function(tick)
   for _,assoc in pairs(storage["oxygen-diffusers"]) do
     if i == (chunk_tick_idx) then
       local diffuser = assoc.diffuser
+      -- another table we need to write back
+      local limit_cc = assoc.limiter.get_or_create_control_behavior().circuit_condition
       local ff = tf_util.floodfill_o2(diffuser)
+
       if ff.error then
         -- you are dumping it all to atmosphere.
         if ff.catastrophe then
-          assoc.valve.valve_threshold_override = 1
           assoc.tank.fluidbox.flush(1, "pk-work")
+          limit_cc.constant = 999999999
         else
-          assoc.valve.valve_threshold_override = 0
+          limit_cc.constant = 0
         end
         tf_util.alert(diffuser, {type="fluid", name="pk-oxygen"}, ff.reason, true)
       else
         local max_o2 = #ff.ok * settings.startup["pk-oxygen-volume-per-tile"].value
-
-        if not assoc.tank.fluidbox[1] then
-          tf_util.debug_flying_text(
-            diffuser.surface, diffuser.position,
-            "tank fluidbox DNE, waiting?",
-            {})
-        else
-          local tank_size = assoc.tank.fluidbox.get_capacity(1)
-          local proportion = max_o2 / tank_size
-          assoc.valve.valve_threshold_override = proportion
-          -- give a little wiggle room
-          local must_void = max_o2 < assoc.tank.fluidbox[1].amount - 100
+        limit_cc.constant = max_o2
+        -- give a little wiggle room
+        local must_void = false
+        if assoc.tank.fluidbox[1] then
+          must_void = max_o2 < assoc.tank.fluidbox[1].amount
           if must_void then
             local fluid = assoc.tank.fluidbox[1]
             fluid.amount = max_o2
             assoc.tank.fluidbox[1] = fluid
           end
-
-          tf_util.debug_flying_text(
-            diffuser.surface, diffuser.position,
-            string.format(
-              "floodfill found %d, need %d o2 (%f%% of max)%s",
-              #ff.ok,
-              max_o2,
-              proportion*100,
-              (must_void and ", voided!" or "")
-            ),
-            {})
-          end
         end
+        tf_util.debug_flying_text(
+          diffuser.surface, diffuser.position,
+          string.format(
+            "floodfill found %d, need %d o2%s",
+            #ff.ok,
+            max_o2,
+            (must_void and ", voided!" or "")
+          ),
+          {})
+      end
 
-        script.raise_event("pk-redraw-guis", {})
+      assoc.limiter.get_or_create_control_behavior().circuit_condition = limit_cc
+      script.raise_event("pk-redraw-guis", {})
     end
     i = i+1
   end
@@ -103,7 +112,12 @@ veh.events[defines.events.on_object_destroyed] = function(evt)
   odds[evt.registration_number] = nil
   local assoc = oxygen_diffuser_assoc(evt.useful_id)
   if assoc then
-    assoc.valve.destroy()
+    if assoc.valve then
+      assoc.valve.destroy()
+    end
+    if assoc.limiter then
+      assoc.limiter.destroy()
+    end
     assoc.tank.destroy()
     tf_util.storage_table("oxygen-diffusers")[evt.useful_id] = nil
   end
