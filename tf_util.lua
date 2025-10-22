@@ -47,18 +47,20 @@ end
 -- {ty="ok"} : can floodfill through here
 -- {ty="wall"} : safely blocks floodfill
 -- {ty="fail", ...}: fail the floodfill, and pass extra to the caller.
+-- can also return {poi=any} to accumulate a table of position->POIs
 tf_util.floodfill = function(start, checker)
   start = tf_util.round_pos(start)
 
   if checker(start).ty ~= "ok" then
     return {
       error=start,
-      reason={"pk-text.o2-diffuser-bad-start"},
+      reason={"pk-text.floodfill-bad-start"},
       catastrophe=false
     }
   end
   local work = {start}
   local results = {start}
+  local pois = {}
   local seen = {[util.positiontostr(start)] = true}
   local done = 0
   while #work > 0 and done < 10000 do
@@ -76,6 +78,9 @@ tf_util.floodfill = function(start, checker)
       seen[i_hate_lua] = true
 
       local checked = checker(there)
+      if checked.poi ~= nil then
+        table.insert(pois, checked.poi)
+      end
       if checked.ty == "ok" then
         table.insert(results, there)
         table.insert(work, there)
@@ -90,32 +95,32 @@ tf_util.floodfill = function(start, checker)
       ::continue::
     end
   end
-  return {ok=results}
+  return {ok=results, pois=pois}
 end
 
 tf_util.position_has_wall = function(surface, pos)
   pos = tf_util.add_pos(pos, {0.5, 0.5})
   local es = surface.find_entities_filtered{
     position = pos,
-    collision_mask = "pk-airtight",
+    collision_mask = "pk-seal",
     radius = 0.25
   }
   return #es > 0
 end
 
-tf_util.floodfill_o2 = function(diffuser)
-  return tf_util.floodfill(diffuser.position, function(pos)
-    local diffuser_here = diffuser.surface.find_entity('pk-oxygen-diffuser', tf_util.add_pos(pos, {0.5, 0.5}))
-    if diffuser_here and diffuser_here ~= diffuser then
+tf_util.floodfill_o2 = function(start_pos, surface, start_diffuser)
+  return tf_util.floodfill(start_pos, function(pos)
+    local diffuser_here = surface.find_entity('pk-oxygen-diffuser', tf_util.add_pos(pos, {0.5, 0.5}))
+    if start_diffuser and diffuser_here and diffuser_here ~= start_diffuser then
       return {
         ty="fail",
         reason={"pk-text.o2-diffuser-two-diffusers"},
         catastrophe=false
       }
-    elseif tf_util.position_has_wall(diffuser.surface, pos) then
+    elseif tf_util.position_has_wall(surface, pos) then
       return {ty="wall"}
-    elseif diffuser.surface.get_tile(pos).collides_with("pk-floor") then
-      return {ty="ok"}
+    elseif surface.get_tile(pos).collides_with("pk-floor") then
+      return {ty="ok", poi=diffuser_here}
     else
       return {
         ty = "fail",
@@ -125,6 +130,23 @@ tf_util.floodfill_o2 = function(diffuser)
     end
   end)
 end
+
+tf_util.floodfill_em = function(start_pos, surface)
+  return tf_util.floodfill(start_pos, function(pos)
+    if tf_util.position_has_wall(surface, pos) then
+      return {ty="wall"}
+    elseif surface.get_tile(pos).collides_with("pk-floor") then
+      return {ty="ok"}
+    else
+      return {
+        ty = "fail",
+        reason = {"pk-text.em-unsealed"},
+        catastrophe=true
+      }
+    end
+  end)
+end
+
 
 tf_util.debug_flying_text = function(surface, position, text, splat)
   for _,player in pairs(game.players) do

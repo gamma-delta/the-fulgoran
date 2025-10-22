@@ -13,8 +13,7 @@ local function update_o2bar(bar, diffuser, ff)
       "pk-gui.o2-diffuser-tank-amt", 0, "infinity"
     }
   elseif assoc.tank.fluidbox[1] then
-    -- TODO pull this out to a setting
-    local o2_per_square = settings.startup["pk-oxygen-volume-per-tile"].value
+    local o2_per_square = settings.global["pk-oxygen-volume-per-tile"].value
     local max_oxygen = limit_cb.circuit_condition.constant
     local oxygen_amount = assoc.tank.fluidbox[1].amount
 
@@ -55,7 +54,7 @@ local function redraw_gui(content)
   local diffuser = game.get_entity_by_unit_number(
     tfgui.find_main_frame(content).tags.diffuser_id
   )
-  local ff = tf_util.floodfill_o2(diffuser)
+  local ff = tf_util.floodfill_o2(diffuser.position, diffuser.surface, diffuser)
 
   tfgui.make_entity_frame(content, diffuser)
 

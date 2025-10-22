@@ -1,180 +1,186 @@
 local tf_util = require("tf_util")
+local o2lib = require("control/o2lib")
 
 local veh = {events={}, on_nth_tick={}}
 
--- Tries to get it via unit number or entity
---- @return {["diffuser"]: LuaEntity, ["valve"]: LuaEntity, ["tank"]: LuaEntity}
-local function oxygen_diffuser_assoc(id)
-  if type(id) ~= "number" then
-    id = id.unit_number
-  end
-  return tf_util.storage_table("oxygen-diffusers")[id]
-end
-
 veh.events[defines.events.on_script_trigger_effect] = function(evt)
-  if evt.effect_id ~= "pk-oxygen-diffuser" then return end
+  if evt.effect_id ~= "pk-need-sealed-o2" and evt.effect_id ~= "pk-need-sealed-em" then
+    return
+  end
+  -- o2 is a "stronger" need than em shielding
+  local need_o2 = evt.effect_id == "pk-need-sealed-o2"
+  local entity = evt.source_entity
 
-  local diffuser = evt.source_entity
-  local decon_id = script.register_on_object_destroyed(diffuser)
-  tf_util.storage_table("oxygen-diffuser-deathrattle")[decon_id] = true
-
-  local limiter = diffuser.surface.create_entity{
-    name = "pk-oxygen-diffuser-limiter",
-    position = diffuser.position,
-    force = diffuser.force
-  }
-  local tank = diffuser.surface.create_entity{
-    name = "pk-oxygen-diffuser-storage",
-    position = diffuser.position,
-    force = diffuser.force
-  }
-  diffuser.fluidbox.add_linked_connection(1, limiter, 1)
-  limiter.fluidbox.add_linked_connection(2, tank, 1)
-
-  -- MAGIC
-  local limiter_wc = limiter.get_wire_connector(defines.wire_connector_id.circuit_green, true)
-  local tank_wc = tank.get_wire_connector(defines.wire_connector_id.circuit_green, true)
-  limiter_wc.connect_to(tank_wc, false, defines.wire_origin.script)
-  local limiter_cb = limiter.get_or_create_control_behavior()
-  local tank_cb = tank.get_or_create_control_behavior()
-  tank_cb.read_contents = true
-  limiter_cb.circuit_enable_disable = true
-  limiter_cb.circuit_condition = {
-    first_signal = {type="fluid", name="pk-work"},
-    comparator="<",
-    constant=0,
-  }
-
-  tf_util.storage_table("oxygen-diffusers")[diffuser.unit_number] = {
-    -- it turns out you can just put entities in here?
-    diffuser = diffuser,
-    limiter = limiter,
-    tank = tank,
-    owned_tiles = {}
+  script.register_on_object_destroyed(entity)
+  tf_util.storage_table("need-sealed")[entity] = {
+    need_o2 = need_o2,
   }
 end
 
-veh.on_nth_tick[10] = function(tick)
-  -- Do 1/6th of these
-  local chunk_amt = 6
-  local chunk_tick_idx = math.floor(tick.tick / tick.nth_tick) % chunk_amt
-  local i = 0
-  for _,assoc in pairs(storage["oxygen-diffusers"]) do
-    if i == (chunk_tick_idx) then
-      local diffuser = assoc.diffuser
-      -- another table we need to write back
-      local limit_cc = assoc.limiter.get_or_create_control_behavior().circuit_condition
-      local ff = tf_util.floodfill_o2(diffuser)
+local function find_diffuser_for_entity(entity)
+  local tile_pos = tf_util.round_pos(entity.position)
+  local key = util.positiontostr(tile_pos)
+  local cached = storage["sealed-locations-o2"][key]
+  if cached then
+    return cached
+  elseif cached == false then
+    -- it's known to be bad
+    return nil
+  end
+  -- else it had nothing and we need to search
 
-      if ff.error then
-        -- you are dumping it all to atmosphere.
-        if ff.catastrophe then
-          assoc.tank.fluidbox.flush(1, "pk-work")
-          limit_cc.constant = 999999999
-        else
-          limit_cc.constant = 0
+  local ff = tf_util.floodfill_o2(entity.position, entity.surface, nil)
+  if ff.error then
+    return nil
+  else
+    return ff.pois[1]
+  end
+end
+
+local check_per_x_ticks = 20
+
+local function check_em_seal_for_entity(entity)
+  local tile_pos = tf_util.round_pos(entity.position)
+  local key = util.positiontostr(tile_pos)
+  local cached = storage["sealed-locations-em"][key]
+  if cached then
+    return true
+  end
+  -- else it had nothing and we need to search
+  local ff = tf_util.floodfill_em(entity.position, entity.surface)
+  return ff.ok ~= nil
+end
+
+local function check_normal_entities(tick)
+  local chunk_amt = 10
+  local chunk_tick_idx = math.floor(tick.tick / tick.nth_tick) % chunk_amt
+
+  if chunk_tick_idx == 0 then
+    -- Start of the "cycle". Clear previous cycle's known sealed locations
+    -- this maps position keys to THE DIFFUSER
+    storage["sealed-locations-o2"] = {}
+    -- maps to true
+    storage["sealed-locations-em"] = {}
+  end
+
+  local i = 0
+  for entity,sealinfo in pairs(tf_util.storage_table("need-sealed")) do
+    if entity.valid and i % chunk_amt == chunk_tick_idx then
+      local success = false
+
+      if sealinfo.need_o2 then
+        local diffuser = find_diffuser_for_entity(entity)
+        local fail = diffuser == nil
+        if diffuser then
+          fail = not o2lib.sip_o2(diffuser, 20)
         end
-        tf_util.alert(diffuser, {type="fluid", name="pk-oxygen"}, ff.reason, true)
-      else
-        local max_o2 = #ff.ok * settings.startup["pk-oxygen-volume-per-tile"].value
-        limit_cc.constant = max_o2
-        -- give a little wiggle room
-        local must_void = false
-        if assoc.tank.fluidbox[1] then
-          must_void = max_o2 < assoc.tank.fluidbox[1].amount
-          if must_void then
-            local fluid = assoc.tank.fluidbox[1]
-            fluid.amount = max_o2
-            assoc.tank.fluidbox[1] = fluid
+
+        if fail then
+          -- Cosmetic effect
+          for _=1,10 do
+            entity.surface.create_particle{
+              name = "hairyclubnub-mining-particle",
+              position = entity.position,
+              movement = {(math.random()-0.5)*0.2, -math.random()*0.1},
+              height = 1,
+              vertical_speed = 0,
+              frame_speed = 1
+            }
           end
+        else
+          success = true
         end
-        tf_util.debug_flying_text(
-          diffuser.surface, diffuser.position,
-          string.format(
-            "floodfill found %d, need %d o2%s",
-            #ff.ok,
-            max_o2,
-            (must_void and ", voided!" or "")
-          ),
-          {})
+      else
+        -- else this is non-o2
+        local has_em = check_em_seal_for_entity(entity)
+        if has_em then
+          success = true
+        else
+          entity.surface.create_entity{
+            name = "flying-robot-damaged-explosion",
+            position = entity.position,
+          }
+          entity.surface.play_sound{
+            -- this is the only thing that uses electric-small-open
+            path = "entity-open/small-lamp",
+            position = entity.position,
+            volume = 0.6
+          }
+        end
       end
 
-      assoc.limiter.get_or_create_control_behavior().circuit_condition = limit_cc
-      script.raise_event("pk-redraw-guis", {})
+      if not success then
+        script.raise_event("pk-seal-failure", {
+          entity = entity,
+          sealinfo = sealinfo
+        })
+        if entity.valid then
+          local dmg = settings.global[
+            sealinfo.need_o2 and "pk-no-o2-damage-per-second" or "pk-no-shielding-damage-per-second"
+          ].value
+          local time_scale = (check_per_x_ticks / 60) * chunk_amt
+          entity.damage(dmg * time_scale, "enemy")
+        end
+      end
     end
-    i = i+1
+    -- next loop
+    i = i + 1
   end
+end
+
+local function check_players(tick)
+  for _,player in pairs(game.players) do
+    if player.character and player.character.name == "character" then
+      -- The player can smash themselves into the tile space of walls.
+      -- Check in a plus shape around the player
+      local found_diffuser = nil
+      for _,offset in ipairs{
+        {0, 0},
+        {-0.5, 0},
+        {0.5, 0},
+        {0, -0.5},
+        {0, 0.5}
+      } do
+        local ff = tf_util.floodfill_o2(
+          tf_util.add_pos(player.character.position, offset),
+          player.surface,
+          nil
+        )
+        if ff.ok then
+          found_diffuser = ff.pois[1]
+          break
+        end
+      end
+
+      local can_breathe = found_diffuser ~= nil
+      if found_diffuser then
+        local player_chug_per_second = 1
+        can_breathe = o2lib.sip_o2(found_diffuser, player_chug_per_second)
+      end
+
+      if not can_breathe then
+        -- todo: check spacesuit
+        local dmg = settings.global["pk-no-o2-player-damage-per-second"].value
+        player.character.damage(dmg, "enemy")
+      end
+    end
+  end
+end
+
+veh.on_nth_tick[check_per_x_ticks] = function(tick)
+  check_normal_entities(tick)
+end
+veh.on_nth_tick[60] = function(tick)
+  check_players(tick)
 end
 
 veh.events[defines.events.on_object_destroyed] = function(evt)
-  local odds = tf_util.storage_table("oxygen-diffuser-deathrattle")
-  if not odds[evt.registration_number] then return end
-  odds[evt.registration_number] = nil
-  local assoc = oxygen_diffuser_assoc(evt.useful_id)
-  if assoc then
-    if assoc.valve then
-      assoc.valve.destroy()
-    end
-    if assoc.limiter then
-      assoc.limiter.destroy()
-    end
-    assoc.tank.destroy()
-    tf_util.storage_table("oxygen-diffusers")[evt.useful_id] = nil
-  end
-end
+  if evt.type ~= defines.target_type.entity then return end
+  local sealinfo_table = tf_util.storage_table("need-sealed")
+  local sealinfo = sealinfo_table[evt.useful_id]
+  if not sealinfo then return end
 
--- i hate factorio
-veh.events[defines.events.on_lua_shortcut] = function(evt)
-  if evt.prototype_name ~= "pk-oxygen-debug" then return end
-  local player = game.players[evt.player_index]
-  player.set_shortcut_toggled("pk-oxygen-debug", not player.is_shortcut_toggled("pk-oxygen-debug"))
-end
-
-veh.events[defines.events.on_selected_entity_changed] = function(evt)
-  local player = game.players[evt.player_index]
-
-  local my_renders = tf_util.storage_table("oxygen-diffuser-renders")
-  if my_renders[player.index] then
-    for _,r in ipairs(my_renders[player.index]) do
-      r.destroy()
-    end
-  end
-  my_renders[player.index] = {}
-
-  local e = player.selected
-  if not e or e.name ~= "pk-oxygen-diffuser" then return end
-  local renders = my_renders[player.index]
-
-  local ff = tf_util.floodfill_o2(e)
-  if ff.error then
-    table.insert(renders, rendering.draw_text{
-      text = ff.reason,
-      surface = e.surface,
-      target = e,
-      color = {1.0, 0.5, 0.5},
-      alignment = "center",
-      vertical_alignment = "middle"
-    })
-    table.insert(renders, rendering.draw_sprite{
-      sprite = "utility/danger_icon",
-      surface = e.surface,
-      x_scale = 0.5,
-      y_scale = 0.5,
-      target = tf_util.add_pos(ff.error, {0.5, 0.5})
-    })
-  else
-    local box_sz = 1
-    for _,pos in ipairs(ff.ok) do
-      table.insert(renders, rendering.draw_rectangle{
-        players = {player},
-        surface = player.surface,
-        left_top = tf_util.add_pos(pos, {1-box_sz, 1-box_sz}),
-        right_bottom = tf_util.add_pos(pos, {box_sz, box_sz}),
-        color = util.premul_color{0.5, 0.7, 1.0, 0.3},
-        filled = true,
-      })
-    end
-  end
+  sealinfo_table[evt.useful_id] = nil
 end
 
 return veh

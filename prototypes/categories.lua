@@ -7,21 +7,11 @@ data:extend{
     type = "collision-layer",
     name = "pk-floor",
   },
-  -- Indicates that an area is surrounded by walls
-  {
-    type = "collision-layer",
-    name = "pk-sealed",
-  },
-  -- Indicates that an area is surrounded by walls and has oxygen
-  {
-    type = "collision-layer",
-    name = "pk-oxygenated",
-  },
 
-  -- Used to indicate that an entity can form oxygen walls
+  -- Used to indicate that an entity can form oxygen/EM walls
   {
     type = "collision-layer",
-    name = "pk-airtight",
+    name = "pk-seal",
   },
 
   {

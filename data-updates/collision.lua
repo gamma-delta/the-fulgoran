@@ -1,37 +1,19 @@
 local vanilla_collision = require("__core__/lualib/collision-mask-defaults")
 
-local function fixup_layer(proto, layer)
+local function require_floor(proto, layer)
   local bb = proto.collision_box
-  if not proto.tile_buildability_rules then 
+  if not proto.tile_buildability_rules then
     proto.tile_buildability_rules = {}
   end
   table.insert(proto.tile_buildability_rules, {
     area = bb,
     remove_on_collision = true,
-    required_tiles = {layers={[layer]=true}}
+    required_tiles = {layers={["pk-floor"]=true}}
   })
 end
-local function req_floor(proto)
-  fixup_layer(proto, "pk-floor")
-end
-local function req_sealed(proto)
-  fixup_layer(proto, "pk-sealed")
-  fixup_layer(proto, "pk-floor")
-end
-local function req_oxygenated(proto)
-  fixup_layer(proto, "pk-oxygenated")
-  fixup_layer(proto, "pk-sealed")
-  fixup_layer(proto, "pk-floor")
-end
 
-req_floor(data.raw["wall"]["stone-wall"])
-req_floor(data.raw["gate"]["gate"])
-
-req_sealed(data.raw["assembling-machine"]["biochamber"])
-req_sealed(data.raw["accumulator"]["accumulator"])
-
-req_oxygenated(data.raw["furnace"]["stone-furnace"])
-req_oxygenated(data.raw["furnace"]["steel-furnace"])
+require_floor(data.raw["wall"]["stone-wall"])
+require_floor(data.raw["gate"]["gate"])
 
 local function add_layer(proto, layer)
   if proto.collision_mask == nil then
@@ -40,6 +22,9 @@ local function add_layer(proto, layer)
   proto.collision_mask.layers[layer] = true
 end
 
-add_layer(data.raw["wall"]["stone-wall"], "pk-airtight")
-add_layer(data.raw["gate"]["gate"], "pk-airtight")
-log(serpent.block(data.raw["wall"]["stone-wall"].collision_mask))
+add_layer(data.raw["wall"]["stone-wall"], "pk-seal")
+local gate = data.raw["gate"]["gate"]
+
+add_layer(gate, "pk-seal")
+gate.opened_collision_mask = util.copy(vanilla_collision["gate/opened"])
+gate.opened_collision_mask.layers["pk-seal"] = true

@@ -97,13 +97,14 @@ data:extend{
     energy_source = {type="void"},
     energy_usage = "69420W",
 
-    pumping_speed = 100000,
+    -- making this *too* high means we overflow the oxygen
+    pumping_speed = 1,
     flow_scaling = false,
     circuit_connector = circuit_connector_definitions["pump"],
 
     fluid_box = {
       -- i think the flow rate is locked on this
-      volume = 1000,
+      volume = 100,
       filter = "pk-work",
       pipe_connections = {
         {

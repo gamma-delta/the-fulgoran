@@ -11,6 +11,10 @@ data:extend{
     type = "custom-event",
     name = "pk-redraw-guis",
   },
+  {
+    type = "custom-event",
+    name = "pk-seal-failure",
+  },
 }
 data.raw["gui-style"].default["pk-filler-horz"] = {
   type = "empty_widget_style",
