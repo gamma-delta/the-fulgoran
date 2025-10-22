@@ -1,0 +1,40 @@
+Progression
+- Crash with some life-support machines broken (CO2 scrubber)
+- This puts you on a quick clock. Fix it!
+
+---
+
+You will always need:
+- Food
+- Water
+- Oxygen
+And shortly afterwards:
+- Power
+- Lightning protection
+- Travel
+
+Survival Needs
+--------------
+
+T0:
+- Food: Gravewort
+- Water: Ice melting
+- Air: CO2 scrubber
+
+T1:
+- Farm plots w/ spoilage
+- Sludge filtering
+- Just cope with oxygen (this is your hunger clock)
+
+Farm plots "burn" organic material to grow. Food spoils into organic materials.
+- Potatoes make good food but poor spoilage
+- Alfalfa gets processed into fiber and spoilage, but is inedible
+- Gravewort grows fast but is unsustainable. It's your "microbe musher."
+- You can make more plots in plots using Fulgoran dust, but it's very slow
+
+Sludge filtering requires (of course) a filter.
+It filters into water, stone, and Fulgoran dust.
+Filters are made with stone and scrubgrass.
+
+With one CO2 scrubber, your oxygen needs are *almost* completely offset.
+I need to tune this so you are still losing oxygen, but very slowly.

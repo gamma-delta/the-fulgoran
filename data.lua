@@ -5,6 +5,7 @@ require "prototypes/items.lua"
 require "prototypes/fluids.lua"
 require "prototypes/entities.lua"
 require "prototypes/recipes.lua"
+require "prototypes/styles.lua"
 
 data:extend{
   {
@@ -15,8 +16,4 @@ data:extend{
     type = "custom-event",
     name = "pk-seal-failure",
   },
-}
-data.raw["gui-style"].default["pk-filler-horz"] = {
-  type = "empty_widget_style",
-  horizontally_stretchable = "on",
 }
