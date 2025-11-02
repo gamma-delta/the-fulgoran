@@ -2,7 +2,7 @@ local veh = {
   events={}
 }
 
-local function respawn_player(player)
+local function place_player(player)
   local fulgora = game.surfaces["fulgora"]
   local spawn_pos = player.force.get_spawn_position(fulgora)
   player.teleport(
@@ -29,8 +29,19 @@ veh.events[defines.events.on_player_created] = function()
 
   local force = game.forces["player"]
   for _,player in ipairs(force.players) do
-    respawn_player(player)
+    place_player(player)
   end
+end
+
+veh.events[defines.events.on_player_died] = function(evt)
+  game.set_game_state{
+    game_finished=true,
+    player_won=false,
+    can_continue=false,
+  }
+  -- I can't disable loading saves
+  -- Oh well
+  -- Honor system?
 end
 
 veh.on_init = function()
@@ -40,8 +51,8 @@ veh.on_init = function()
   end
 
   create_ending_info()
-
 end
+
 veh.on_configuration_changed = function()
   create_ending_info()
 end

@@ -1,4 +1,5 @@
 require("data-updates/hiding")
+require("data-updates/lightning")
 require("data-updates/collision")
 require("data-updates/categories")
 require("data-updates/need-seals")

@@ -1,0 +1,4 @@
+-- Remove a bunch of stuff to make the game load faster
+-- data.raw["planet"]["vulcanus"] = nil
+-- data.raw["planet"]["gleba"] = nil
+-- data.raw["planet"]["aquilo"] = nil
