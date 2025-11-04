@@ -32,7 +32,7 @@ api.sip_o2 = function(diffuser, sip_amt)
   local removed_amt = assoc.tank.remove_fluid{
     name="pk-work", amount=sip_amt
   }
-  return (removed_amt + 1) >= sip_amt
+  return removed_amt >= sip_amt
 end
 
 return api

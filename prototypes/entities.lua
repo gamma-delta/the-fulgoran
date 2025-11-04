@@ -178,5 +178,10 @@ data:extend{
       { type="fire", percent=90 },
       { type="electric", percent=90 },
     }
+  }},
+  tf_util.merge1{data.raw["car"]["car"], {
+    name = "pk-buggy",
+    terrain_friction_modifier = 0.5,
+    minable = {mining_time = 0.5, result="pk-buggy"},
   }}
 }

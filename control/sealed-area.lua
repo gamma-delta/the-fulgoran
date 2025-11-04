@@ -162,6 +162,7 @@ local function check_players(tick)
         -- todo: check spacesuit
         local dmg = settings.global["pk-no-o2-player-damage-per-second"].value
         player.character.damage(dmg, "enemy")
+        -- TODO: when in a vehicle, this damages the vehicle not the player
       end
     end
   end
