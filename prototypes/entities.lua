@@ -167,5 +167,16 @@ data:extend{
         }
       }
     }
-  }
+  },
+
+  tf_util.merge1{data.raw["lightning-attractor"]["lightning-rod"], {
+    name = "pk-lightning-rod",
+    efficiency = 0,
+    energy_source = tf_util.null,
+    minable = {mining_time = 0.5, result="pk-lightning-rod"},
+    resistances = {
+      { type="fire", percent=90 },
+      { type="electric", percent=90 },
+    }
+  }}
 }

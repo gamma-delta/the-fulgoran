@@ -10,4 +10,9 @@ data:extend{
     name = "pk-oxygen-diffuser",
     place_result = "pk-oxygen-diffuser",
   }},
+
+  util.merge{data.raw["item"]["lightning-rod"], {
+    name = "pk-lightning-rod",
+    place_result = "pk-lightning-rod",
+  }},
 }

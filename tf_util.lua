@@ -1,5 +1,8 @@
 -- The Fulgoran util
-local tf_util = {}
+local tf_util = {
+  -- Gensym for null
+  null = {}
+}
 
 tf_util.script_created_effect = function(name)
   return {
@@ -12,6 +15,39 @@ tf_util.script_created_effect = function(name)
       }
     }
   }
+end
+
+-- From util but listens to sentinels
+tf_util.deepcopy = function(object)
+  if object == tf_util.null then return nil end
+  local lookup_table = {}
+  local function _copy(object)
+    if type(object) ~= "table" then
+      return object
+    elseif lookup_table[object] then
+      return lookup_table[object]
+    end
+    local new_table = {}
+    lookup_table[object] = new_table
+    for index, value in pairs(object) do
+      new_table[_copy(index)] = _copy(value)
+    end
+    return setmetatable(new_table, getmetatable(object))
+  end
+  return _copy(object)
+end
+tf_util.merge1 = function(tables)
+  local ret = {}
+  for i, tab in ipairs(tables) do
+    for k, v in pairs(tab) do
+      if (type(v) == "table") then
+        ret[k] = tf_util.deepcopy(v)
+      else
+        ret[k] = v
+      end
+    end
+  end
+  return ret
 end
 
 tf_util.get = function(table, key, default)
