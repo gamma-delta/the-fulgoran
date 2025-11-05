@@ -7,7 +7,6 @@ data:extend{
       {type="item", name="pump", amount=1},
       {type="item", name="pk-filter", amount=5},
       {type="item", name="low-density-structure", amount=10},
-      -- Post-recycler
       {type="item", name="electronic-circuit", amount=10},
     }
   },

@@ -27,7 +27,8 @@ data:extend{
     type = "int-setting",
     name = "pk-no-o2-player-damage-per-second",
     setting_type = "runtime-global",
-    default_value = 10,
+    -- Player has 250 health
+    default_value = 50,
     minimum_value = 1,
     maximum_value = 1000,
   },
